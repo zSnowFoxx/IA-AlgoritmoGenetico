@@ -1,7 +1,6 @@
 // import java.util.ArrayList;
 // import java.util.List;
 
-
 public class CromossomoTest {
 
     public static void main(String[] args) {

@@ -1,3 +1,4 @@
+import java.util.Arrays;
 import java.util.Random;
 
 
@@ -14,17 +15,52 @@ public class Cromossomo {
     private int[] genes;      // Vetor que representa as quantidades enviadas de produtos
     private double fitness;   // Valor da aptidão (fitness) do cromossomo
 
-    public Cromossomo(int[] genes) {
-        this.genes = genes;
-        calcularFitness();
-    }
-
+    // Contrutor simples que gera um cromossomo base com genes aleatórios
     public Cromossomo() {
         this.genes = new int[TAM_CROMOSSOMO];
         gerarGenesAleatorios();
         calcularFitness();
     }
 
+    // Contrutor simples que gera um cromossomo base com genes definidos
+    public Cromossomo(int[] genes) {
+        this.genes = genes;
+        calcularFitness();
+    }
+
+    // Contrutor que gera um cromossomo base com genes aleatórios e efetua sua mutação, podendo ser simples (1), por viagem (2) ou múltipla (3)
+    public Cromossomo(Double taxaMutacao, int tipoMutacao) {
+        this.genes = new int[TAM_CROMOSSOMO];
+        gerarGenesAleatorios();
+        if (tipoMutacao == 1) { mutacaoSimples(taxaMutacao); }
+        if (tipoMutacao == 2) { mutacaoPorViagem(taxaMutacao); }
+        if (tipoMutacao == 3) { mutacaoMultipla(taxaMutacao); }
+        calcularFitness();
+    }
+
+    // Contrutor que gera um cromossomo base com genes definidos e efetua sua mutação, podendo ser simples (1), por viagem (2) ou múltipla (3)
+    public Cromossomo(int[] genes, Double taxaMutacao, int tipoMutacao) {
+        this.genes = genes;
+        if (tipoMutacao == 1) { mutacaoSimples(taxaMutacao); }
+        if (tipoMutacao == 2) { mutacaoPorViagem(taxaMutacao); }
+        if (tipoMutacao == 3) { mutacaoMultipla(taxaMutacao); }
+        calcularFitness();
+    }
+
+    // Contrutor que gera um cromossomo base com genes aleatórios e efetua um loop de mutações de um tipo, podendo ser simples (1), por viagem (2) ou múltipla (3)
+    public Cromossomo(int numLoops, int tipoMutacao) {
+        this.genes = new int[TAM_CROMOSSOMO];
+        gerarGenesAleatorios();
+        loopMutacao(numLoops, tipoMutacao);
+    }
+
+    // Contrutor que gera um cromossomo base com genes definidos e efetua um loop de mutações de um tipo, podendo ser simples (1), por viagem (2) ou múltipla (3)
+    public Cromossomo(int[] genes, int numLoops, int tipoMutacao) {
+        this.genes = genes;
+        loopMutacao(numLoops, tipoMutacao);
+    }
+
+    // Função que gera os genes de forma aleatória com os dados que foram informados pela loja
     private void gerarGenesAleatorios() {
         int[] estoqueDisponivel = Config.centroDistribuicao.getEstoqueDisponivelPorProduto().clone();
         Random rand = new Random();
@@ -115,6 +151,172 @@ public class Cromossomo {
         }
     }
 
+    // Mutação simples: altera um gene aleatório, sob uma chance
+    public void mutacaoSimples(Double taxaMutacao) {
+        Random rand = new Random();
+
+        if (rand.nextDouble() < taxaMutacao) {
+            int[] genes = this.getGenes();
+
+            // Escolhe um índice aleatório para mutar
+            int indice = rand.nextInt(genes.length);
+
+            // Decide se soma ou subtrai 20
+            int delta = rand.nextBoolean() ? 20 : -20;
+
+            int novoValor = genes[indice] + delta;
+
+            // Garante que não seja menor que 0
+            if (novoValor < 0) {
+                novoValor = 0;
+            }
+
+            this.genes[indice] = novoValor;
+        }
+    }
+
+    // Mutação por viagem: altera um gene aleatório a cada viagem, sob uma chance
+    public void mutacaoPorViagem(Double taxaMutacao) {
+        Random rand = new Random();
+
+        // Faz um loop de mutação simples a cada viagem
+        for(int i = 0; i < 5000; i = i + 50){
+            if (rand.nextDouble() < taxaMutacao) {
+                int[] genes = this.getGenes();
+
+                // Escolhe um índice aleatório para mutar
+                int indice = rand.nextInt(genes.length);
+
+                // Decide se soma ou subtrai 20
+                int delta = rand.nextBoolean() ? 20 : -20;
+
+                int novoValor = genes[indice] + delta;
+
+                // Garante que não seja menor que 0
+                if (novoValor < 0) {
+                    novoValor = 0;
+                }
+
+                this.genes[indice] = novoValor;
+            }
+        }
+    }
+
+    // Mutação múltipla: altera mais de um gene
+    public void mutacaoMultipla(Double taxaMutacao) {
+        Random rand = new Random();
+        int[] genes = this.getGenes();  // Obtém os genes do cromossomo
+
+        // Itera sobre os genes do cromossomo
+        for (int i = 0; i < genes.length; i++) {
+            // Para cada gene, gera uma probabilidade para mutação
+            if (rand.nextDouble() < taxaMutacao) {  // taxaMutacao é a probabilidade
+                // Gera uma alteração aleatória para o gene
+                int delta = (rand.nextBoolean() ? 20 : -20);  // A mutação pode ser de +20 ou -20
+
+                // Calcula o novo valor do gene
+                int novoValor = genes[i] + delta;
+
+                // Garante que o novo valor do gene seja maior ou igual a 0
+                novoValor = Math.max(0, (novoValor / 20) * 20);  // Mantém múltiplos de 20 e >= 0
+
+                // Atualiza o gene no cromossomo
+                this.genes[i] = novoValor;
+            }
+        }
+    }
+
+    // Executa uma mutação simples até que o fitness seja o maior número possível
+    public void loopMutacao(int numeroLoops, int tipoMutacao) {
+        // Calcula o fitness do cromossomo gerado
+        calcularFitness();
+        System.out.println("Fitness antes do loop: " + this.getFitness());
+
+        // Armazena o valor do fitness atual
+        Double fitnessAtual = this.getFitness();
+        Double fitnessMutado;
+
+        // Armazena o valor dos genes atuais
+        int[] genesAtual = Arrays.copyOf(this.genes, this.genes.length);
+        
+        // Define o tipo de mutação, se simples (1), por viagem (2) ou múltipla (3)
+        if (tipoMutacao == 3) {
+            for (int i = 0; i < numeroLoops; i++) {
+                // Faz uma mutação múltipla no cromossomo
+                mutacaoMultipla(1.0);
+                // Calcula novamente o valor do fitness do cromossomo agora mutado
+                calcularFitness();
+                // System.out.println("Fitness depois da mutação n°" + (i+1) + ": " + this.getFitness());
+
+                // Armazena o valor dessa mutação
+                fitnessMutado = this.getFitness();
+
+                // Se o fitness dessa mutação for pior ou igual ao da anterior, ele retorna a anterior
+                if (fitnessMutado < fitnessAtual) {
+                    this.genes = Arrays.copyOf(genesAtual, genesAtual.length);
+                    this.fitness = fitnessAtual;
+                } 
+                // Se o fitness da mutação for melhor que o da anterior, ele salva o fitness na variável e continua o loop
+                else {
+                    fitnessAtual = fitnessMutado;
+                    genesAtual = Arrays.copyOf(this.genes, this.genes.length);
+                }
+            }
+            this.genes = Arrays.copyOf(genesAtual, genesAtual.length);
+            this.fitness = fitnessAtual;
+            System.out.println("Fitness final: " + this.getFitness());
+        } else if (tipoMutacao == 2) {
+            for (int i = 0; i < numeroLoops; i++) {
+                // Faz uma mutação simples no cromossomo
+                mutacaoPorViagem(1.0);
+                // Calcula novamente o valor do fitness do cromossomo agora mutado
+                calcularFitness();
+                // System.out.println("Fitness depois da mutação n°" + (i+1) + ": " + this.getFitness());
+
+                // Armazena o valor dessa mutação
+                fitnessMutado = this.getFitness();
+
+                // Se o fitness dessa mutação for pior ou igual ao da anterior, ele retorna a anterior
+                if (fitnessMutado < fitnessAtual) {
+                    this.genes = Arrays.copyOf(genesAtual, genesAtual.length);
+                    this.fitness = fitnessAtual;
+                } 
+                // Se o fitness da mutação for melhor que o da anterior, ele salva o fitness na variável e continua o loop
+                else {
+                    fitnessAtual = fitnessMutado;
+                    genesAtual = Arrays.copyOf(this.genes, this.genes.length);
+                }
+            }
+            this.genes = Arrays.copyOf(genesAtual, genesAtual.length);
+            this.fitness = fitnessAtual;
+            System.out.println("Fitness final: " + this.getFitness());
+        } else {
+            for (int i = 0; i < numeroLoops; i++) {
+                // Faz uma mutação simples no cromossomo
+                mutacaoSimples(1.0);
+                // Calcula novamente o valor do fitness do cromossomo agora mutado
+                calcularFitness();
+                // System.out.println("Fitness depois da mutação n°" + (i+1) + ": " + this.getFitness());
+
+                // Armazena o valor dessa mutação
+                fitnessMutado = this.getFitness();
+
+                // Se o fitness dessa mutação for pior ou igual ao da anterior, ele retorna a anterior
+                if (fitnessMutado < fitnessAtual) {
+                    this.genes = Arrays.copyOf(genesAtual, genesAtual.length);
+                    this.fitness = fitnessAtual;
+                } 
+                // Se o fitness da mutação for melhor que o da anterior, ele salva o fitness na variável e continua o loop
+                else {
+                    fitnessAtual = fitnessMutado;
+                    genesAtual = Arrays.copyOf(this.genes, this.genes.length);
+                }
+            }
+            this.genes = Arrays.copyOf(genesAtual, genesAtual.length);
+            this.fitness = fitnessAtual;
+            System.out.println("Fitness final: " + this.getFitness());
+        };
+    }
 
     /**
      * Avalia a aptidão (fitness) do cromossomo com base em penalidades e custos.
